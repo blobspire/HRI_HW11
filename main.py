@@ -4,13 +4,13 @@ from scipy.optimize import minimize
 
 
 # vehicle dynamics
-def dynamics(state, action):
+def dynamics(state, action): # state is (x, y)
     delta = 1.0 * np.array([np.cos(action), np.sin(action)])
     new_state = state + delta
     return new_state
 
 # trajectory rollout
-def rollout(initial_state, actions):
+def rollout(initial_state, actions): # n + 1 length trajectory for n actions, bc initial state
     state = np.copy(initial_state)
     xi = [state.tolist()]
     for a in actions:
