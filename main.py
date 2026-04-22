@@ -53,6 +53,22 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
             break
     return cost
 
+def nested_cost(human_actions_local, robot_actions, initial_human_state, initial_robot_state):
+    # Optimize for the human actions
+    # fun human cost, optimize human actions
+    # human actions = results
+    result = minimize(
+            fun=human_cost, 
+            x0=human_actions_local, 
+            args=(initial_human_state, initial_robot_state, robot_actions),
+            method='L-BFGS-B',
+            bounds=[(-np.pi/8, np.pi/8) for _ in range(len(human_actions_local))] # bounds: how human can turn (default: -pi to pi)
+            )
+    global human_actions
+    human_actions = result.x
+    human_actions_local = result.x
+    return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local)
+
 # plot the trajectories
 def plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions):
     human_trajectory = rollout(initial_human_state, human_actions)
