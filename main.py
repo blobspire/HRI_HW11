@@ -75,6 +75,14 @@ def plot_trajectory(initial_human_state, initial_robot_state, human_actions, rob
     robot_trajectory = rollout(initial_robot_state, robot_actions)
     plt.plot(human_trajectory[:,0], human_trajectory[:,1], 'bo-')
     plt.plot(robot_trajectory[:,0], robot_trajectory[:,1], 'ro-')
+    plt.axis('equal')
+    # Add human and robot labels
+    plt.text(initial_human_state[0], initial_human_state[1], 'Human', fontsize=12, color='blue')
+    plt.text(initial_robot_state[0], initial_robot_state[1], 'Robot', fontsize=12, color='red')
+    # Add time labels # TODO could also use alpha to show (lighter = past, darker = current)
+    for i in range(len(human_trajectory)):
+        plt.text(human_trajectory[i,0], human_trajectory[i,1], f't={i}', fontsize=8, color='blue')
+        plt.text(robot_trajectory[i,0], robot_trajectory[i,1], f't={i}', fontsize=8, color='red')
     plt.savefig("result.png")
 
 # initialize the vehicles
