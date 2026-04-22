@@ -45,26 +45,27 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
         human_state = x[0]
         robot_state = x[1]
         # design your state cost (for the robot) here!
-        cost += -human_state[0]
+        cost += human_state[0] # For robot to slow human, remove negation (cost = human's progress)
 
         # If collide, add big cost
-        if np.linalg.norm(human_state - robot_state) < 0.01:
-            cost += 1000
-            break
+        # if np.linalg.norm(human_state - robot_state) < 0.01:
+        #     cost += 1000
+        #     break
     return cost
 
-def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local):
+def nested_cost(human_actions, initial_human_state, initial_robot_state, robot_actions_local):
+    # For each candidate robot plan, solve the human's best response.
     result = minimize(
-            fun=human_cost, 
-            x0=human_actions_local, 
-            args=(initial_human_state, initial_robot_state, robot_actions),
+            fun=robot_cost, 
+            x0=robot_actions_local, 
+            args=(initial_human_state, initial_robot_state, robot_actions_local),
             method='L-BFGS-B',
-            bounds=[(-np.pi/8, np.pi/8) for _ in range(len(human_actions_local))] # bounds: how human can turn (default: -pi to pi)
+            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
             )
-    global human_actions
-    human_actions = result.x
+    global robot_actions
+    robot_actions = result.x
     human_actions_local = result.x
-    return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local)
+    return human_cost(human_actions, initial_human_state, initial_robot_state, robot_actions_local)
 
 # plot the trajectories
 def plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions):
@@ -91,12 +92,12 @@ human_actions = np.zeros_like(robot_actions)
 # optimize the human's actions
 result = minimize(
             fun=nested_cost, 
-            x0=robot_actions, 
-            args=(initial_human_state, initial_robot_state, robot_actions),
+            x0=human_actions, 
+            args=(initial_human_state, initial_robot_state, human_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi/8, np.pi/8) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
+            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
             )
-robot_actions = result.x
+human_actions = result.x
 
 # plot the results (saves as a png file)
 plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions)
