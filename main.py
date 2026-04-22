@@ -86,20 +86,20 @@ def plot_trajectory(initial_human_state, initial_robot_state, human_actions, rob
     plt.savefig("result.png")
 
 # initialize the vehicles
-initial_human_state = np.array([-7.0, 0.])
+initial_human_state = np.array([-7.0, 0.]) # Same y would cause local minima
 initial_robot_state = np.array([-6.0, 0.1])
-robot_actions = np.array([0., 0., 0., 0., 0.])
+robot_actions = np.array([0., 0., 0., 0., 0.]) # actions are slopes (turning angle)
 human_actions = np.zeros_like(robot_actions)
 
 # optimize the human's actions
 result = minimize(
-            fun=human_cost, 
-            x0=human_actions, 
+            fun=nested_cost, 
+            x0=robot_actions, 
             args=(initial_human_state, initial_robot_state, robot_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))]
+            bounds=[(-np.pi/8, np.pi/8) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
             )
-human_actions = result.x
+robot_actions = result.x
 
 # plot the results (saves as a png file)
 plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions)
