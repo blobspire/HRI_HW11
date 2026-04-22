@@ -53,10 +53,7 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
             break
     return cost
 
-def nested_cost(human_actions_local, robot_actions, initial_human_state, initial_robot_state):
-    # Optimize for the human actions
-    # fun human cost, optimize human actions
-    # human actions = results
+def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local):
     result = minimize(
             fun=human_cost, 
             x0=human_actions_local, 
