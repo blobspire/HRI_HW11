@@ -28,7 +28,7 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
         human_state = x[0]
         robot_state = x[1]
         # design your state cost (for the human) here!
-        cost += 1/np.linalg.norm(human_state - robot_state) # Stay away from the robot (cost bigger as closer)
+        cost += 1/(np.linalg.norm(human_state - robot_state) + 1e-6) # Stay away from the robot (cost bigger as closer)
         cost += -human_state[0] # Maximize distance along first (x) axis (left to right)
 
         # # If collide, add big cost
@@ -45,8 +45,9 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
     for idx, x in enumerate(zip(human_trajectory, robot_trajectory)):
         human_state = x[0]
         robot_state = x[1]
-        # design your state cost (for the robot) here!
-        cost += -human_state[0] # For robot to slow human, remove negation (cost = human's progress)
+        
+        # cost -= 1/(np.linalg.norm(human_state - robot_state) + 1e-6) # Robot wants to be close to human
+        cost += human_state[0] # For robot to slow human, remove negation (cost = human's progress)
 
         # If collide, add big cost
         # if np.linalg.norm(human_state - robot_state) < 0.01:
