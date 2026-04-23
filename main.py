@@ -1,8 +1,20 @@
 import os
+import atexit
+import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
+
+
+def notify_completion():
+    try:
+        subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except FileNotFoundError:
+        print("\a", end="", flush=True)
+
+
+atexit.register(notify_completion) # Play sound when exit to notify developer
 
 # vehicle dynamics
 def dynamics(state, action): # state is (x, y)
