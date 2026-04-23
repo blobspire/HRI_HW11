@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 # vehicle dynamics
 def dynamics(state, action): # state is (x, y)
-    delta = 0.1 * np.array([np.cos(action), np.sin(action)])
+    delta = 1.0 * np.array([np.cos(action), np.sin(action)])
     new_state = state + delta
     return new_state
 
