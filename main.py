@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
@@ -5,7 +6,7 @@ from scipy.optimize import minimize
 
 # vehicle dynamics
 def dynamics(state, action): # state is (x, y)
-    delta = 1.0 * np.array([np.cos(action), np.sin(action)])
+    delta = 0.1 * np.array([np.cos(action), np.sin(action)])
     new_state = state + delta
     return new_state
 
@@ -30,10 +31,10 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
         cost += 1/np.linalg.norm(human_state - robot_state) # Stay away from the robot (cost bigger as closer)
         cost += -human_state[0] # Maximize distance along first (x) axis (left to right)
 
-        # If collide, add big cost
-        if np.linalg.norm(human_state - robot_state) < 0.01:
-            cost += 1000
-            break
+        # # If collide, add big cost
+        # if np.linalg.norm(human_state - robot_state) < 0.1:
+        #     cost += 1000
+        #     break
     return cost
 
 # robot cost function
@@ -54,19 +55,18 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
     return cost
 
 # Determine the robot's cost for a given human plan
-def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local):
+def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions):
     # For each candidate robot plan, solve the human's best response
     result = minimize(
             fun=human_cost, 
-            x0=human_actions_local, 
+            x0=human_actions, 
             args=(initial_human_state, initial_robot_state, robot_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions_local))] # bounds: how human can turn (default: -pi to pi)
+            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
             )
-    # global human_actions
-    human_actions_local = result.x
+
     human_actions = result.x
-    return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions_local)
+    return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions)
 
 # plot the trajectories
 def plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions):
@@ -100,5 +100,19 @@ result = minimize(
             )
 robot_actions = result.x
 
+# Solve for the human's best response to the final robot plan. This best response was determined within the nested optimization so we can use the robot's plan to re-solve for it 
+# We could also use a global variable to extract the human's best response from within the nested optimization but this is cleaner
+result = minimize(
+            fun=human_cost, 
+            x0=human_actions, 
+            args=(initial_human_state, initial_robot_state, robot_actions),
+            method='L-BFGS-B',
+            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
+            )
+human_actions = result.x
+
+# Remove the png to ensure we're viewing an updated result
+if os.path.exists("result.png"):
+    os.remove("result.png")
 # plot the results (saves as a png file)
 plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions)
