@@ -6,7 +6,8 @@ from scipy.optimize import minimize
 
 # vehicle dynamics
 def dynamics(state, action): # state is (x, y)
-    delta = 1.0 * np.array([np.cos(action), np.sin(action)])
+    theta, speed = action
+    delta = speed * np.array([np.cos(theta), np.sin(theta)])
     new_state = state + delta
     return new_state
 
@@ -19,8 +20,14 @@ def rollout(initial_state, actions): # n + 1 length trajectory for n actions, bc
         xi.append(state.tolist())
     return np.array(xi)
 
+# Helper function to reshape the actions from the optimization (which is a flat array) to the shape we need for rollout (n, 2)
+def unpack_actions(actions):
+    return actions.reshape(-1, 2) # reshape to (n, 2) where n is number of time steps and 2 is (theta, speed)
+
 # human cost function
 def human_cost(human_actions, initial_human_state, initial_robot_state, robot_actions):
+    human_actions = unpack_actions(human_actions)
+    robot_actions = unpack_actions(robot_actions)
     human_trajectory = rollout(initial_human_state, human_actions)
     robot_trajectory = rollout(initial_robot_state, robot_actions)
     cost = 0.
@@ -39,6 +46,8 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
 
 # robot cost function
 def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions):
+    human_actions = unpack_actions(human_actions)
+    robot_actions = unpack_actions(robot_actions)
     human_trajectory = rollout(initial_human_state, human_actions)
     robot_trajectory = rollout(initial_robot_state, robot_actions)
     cost = 0.
@@ -87,9 +96,16 @@ def plot_trajectory(initial_human_state, initial_robot_state, human_actions, rob
 
 # initialize the vehicles
 initial_human_state = np.array([-7.0, 0.]) # Same y would cause local minima
-initial_robot_state = np.array([-6.0, 0.1])
-robot_actions = np.array([0., 0., 0., 0., 0.]) # actions are slopes (turning angle)
-human_actions = np.zeros_like(robot_actions)
+initial_robot_state = np.array([-6.0, 0])
+
+time_steps = 10
+robot_actions = np.tile([0.0, 0.5], time_steps) # actions are slopes (turning angle)
+human_actions = np.tile([0.0, 0.5], time_steps)
+
+bounds = []
+for _ in range(time_steps):
+    bounds.append((-np.pi, np.pi)) # theta bounds: how agent can turn (default: -pi to pi)
+    bounds.append((0, 1)) # speed bounds: how fast agent can go (default: 0 to 1)
 
 # Optimize the robot's actions given human's best response
 result = minimize(
