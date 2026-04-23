@@ -47,6 +47,14 @@ def rollout(initial_state, actions): # n + 1 length trajectory for n actions, bc
 def unpack_actions(actions):
     return actions.reshape(-1, 2) # reshape to (n, 2) where n is number of time steps and 2 is (theta, speed)
 
+
+def build_bounds(time_steps):
+    bounds = []
+    for _ in range(time_steps):
+        bounds.append(ANGLE_BOUNDS) # theta bounds: how agent can turn (default: -pi to pi)
+        bounds.append(SPEED_BOUNDS) # speed bounds: how fast agent can go (default: 0 to 1)
+    return bounds
+
 # human cost function
 def human_cost(human_actions, initial_human_state, initial_robot_state, robot_actions):
     human_actions = unpack_actions(human_actions)
@@ -87,17 +95,20 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
             break
     return cost
 
-# Determine the robot's cost for a given human plan
-def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions):
-    # For each candidate robot plan, solve the human's best response
-    result = minimize(
+
+def solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions_guess):
+    return minimize(
             fun=human_cost, 
-            x0=human_actions, 
+            x0=human_actions_guess, 
             args=(initial_human_state, initial_robot_state, robot_actions),
             method='L-BFGS-B',
             bounds=bounds
             )
 
+# Determine the robot's cost for a given human plan
+def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions):
+    # For each candidate robot plan, solve the human's best response
+    result = solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions)
     human_actions = result.x
     return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions)
 
@@ -134,10 +145,7 @@ initial_robot_state = INITIAL_ROBOT_STATE.copy()
 robot_actions = np.tile(INITIAL_ACTION, TIME_STEPS) # actions are slopes (turning angle)
 human_actions = np.tile(INITIAL_ACTION, TIME_STEPS)
 
-bounds = []
-for _ in range(TIME_STEPS):
-    bounds.append(ANGLE_BOUNDS) # theta bounds: how agent can turn (default: -pi to pi)
-    bounds.append(SPEED_BOUNDS) # speed bounds: how fast agent can go (default: 0 to 1)
+bounds = build_bounds(TIME_STEPS)
 
 # Optimize the robot's actions given human's best response
 result = minimize(
@@ -149,15 +157,8 @@ result = minimize(
             )
 robot_actions = result.x
 
-# Solve for the human's best response to the final robot plan. This best response was determined within the nested optimization so we can use the robot's plan to re-solve for it 
-# We could also use a global variable to extract the human's best response from within the nested optimization but this is cleaner
-result = minimize(
-            fun=human_cost, 
-            x0=human_actions, 
-            args=(initial_human_state, initial_robot_state, robot_actions),
-            method='L-BFGS-B',
-            bounds=bounds
-            )
+# Solve for the human's best response to the final robot plan.
+result = solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions)
 human_actions = result.x
 
 # Remove the png to ensure we're viewing an updated result
