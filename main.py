@@ -3,8 +3,12 @@ import atexit
 import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 from scipy.optimize import minimize
 
+
+# Agent characteristics
+agent_radius = 0.5
 
 
 def notify_completion():
@@ -50,10 +54,10 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
         cost += 1/(np.linalg.norm(human_state - robot_state) + 1e-6) # Stay away from the robot (cost bigger as closer)
         cost += -human_state[0] # Maximize distance along first (x) axis (left to right)
 
-        # # If collide, add big cost
-        # if np.linalg.norm(human_state - robot_state) < 0.1:
-        #     cost += 1000
-        #     break
+        # If collide, add big cost
+        if np.linalg.norm(human_state - robot_state) < agent_radius * 2: # If distance less than sum of radii, they collide
+            cost += 1000
+            break
     return cost
 
 # robot cost function
@@ -70,10 +74,10 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
         # cost -= 1/(np.linalg.norm(human_state - robot_state) + 1e-6) # Robot wants to be close to human
         cost += human_state[0] # For robot to slow human, remove negation (cost = human's progress)
 
-        # If collide, add big cost
-        # if np.linalg.norm(human_state - robot_state) < 0.01:
-        #     cost += 1000
-        #     break
+        # If collide, add big reward
+        if np.linalg.norm(human_state - robot_state) < agent_radius * 2:
+            cost -= 1000
+            break
     return cost
 
 # Determine the robot's cost for a given human plan
@@ -84,7 +88,7 @@ def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_a
             x0=human_actions, 
             args=(initial_human_state, initial_robot_state, robot_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
+            bounds=bounds
             )
 
     human_actions = result.x
@@ -94,25 +98,35 @@ def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_a
 def plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions):
     human_trajectory = rollout(initial_human_state, human_actions)
     robot_trajectory = rollout(initial_robot_state, robot_actions)
-    plt.plot(human_trajectory[:,0], human_trajectory[:,1], 'bo-')
-    plt.plot(robot_trajectory[:,0], robot_trajectory[:,1], 'ro-')
-    plt.axis('equal')
+    fig, ax = plt.subplots()
+    ax.plot(human_trajectory[:,0], human_trajectory[:,1], 'b-', alpha=0.6, linewidth=2)
+    ax.plot(robot_trajectory[:,0], robot_trajectory[:,1], 'r-', alpha=0.6, linewidth=2)
+
+    num_steps = len(human_trajectory)
+    for i, (human_state, robot_state) in enumerate(zip(human_trajectory, robot_trajectory)):
+        alpha = 0.12 + 0.55 * (i + 1) / num_steps
+        ax.add_patch(Circle(human_state, agent_radius, facecolor='blue', edgecolor='blue', alpha=alpha, linewidth=1.5))
+        ax.add_patch(Circle(robot_state, agent_radius, facecolor='red', edgecolor='red', alpha=alpha, linewidth=1.5))
+        ax.scatter(human_state[0], human_state[1], color='blue', s=18, alpha=min(alpha + 0.15, 1.0), zorder=3)
+        ax.scatter(robot_state[0], robot_state[1], color='red', s=18, alpha=min(alpha + 0.15, 1.0), zorder=3)
+    ax.axis('equal')
     # Add human and robot labels
-    plt.text(initial_human_state[0], initial_human_state[1], 'Human', fontsize=12, color='blue')
-    plt.text(initial_robot_state[0], initial_robot_state[1], 'Robot', fontsize=12, color='red')
-    # Add time labels # TODO could also use alpha to show (lighter = past, darker = current)
+    ax.text(initial_human_state[0], initial_human_state[1] + agent_radius + 0.1, 'Human', fontsize=12, color='blue')
+    ax.text(initial_robot_state[0], initial_robot_state[1] + agent_radius + 0.1, 'Robot', fontsize=12, color='red')
+    # Add time labels
     for i in range(len(human_trajectory)):
-        plt.text(human_trajectory[i,0], human_trajectory[i,1], f't={i}', fontsize=8, color='blue')
-        plt.text(robot_trajectory[i,0], robot_trajectory[i,1], f't={i}', fontsize=8, color='red')
-    plt.savefig("result.png")
+        ax.text(human_trajectory[i,0], human_trajectory[i,1] - agent_radius - 0.1, f't={i}', fontsize=8, color='black')
+        ax.text(robot_trajectory[i,0], robot_trajectory[i,1] - agent_radius - 0.1, f't={i}', fontsize=8, color='black')
+    fig.savefig("result.png")
+    plt.close(fig)
 
 # initialize the vehicles
 initial_human_state = np.array([-7.0, 0.]) # Same y would cause local minima
-initial_robot_state = np.array([-6.0, 0])
+initial_robot_state = np.array([-5.0, 0.1])
 
 time_steps = 10
-robot_actions = np.tile([0.0, 0.5], time_steps) # actions are slopes (turning angle)
-human_actions = np.tile([0.0, 0.5], time_steps)
+robot_actions = np.tile([0.0, 0.0], time_steps) # actions are slopes (turning angle)
+human_actions = np.tile([0.0, 0.0], time_steps)
 
 bounds = []
 for _ in range(time_steps):
@@ -125,7 +139,7 @@ result = minimize(
             x0=robot_actions, 
             args=(initial_human_state, initial_robot_state, human_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi, np.pi) for _ in range(len(robot_actions))] # bounds: how human can turn (default: -pi to pi)
+            bounds=bounds
             )
 robot_actions = result.x
 
@@ -136,7 +150,7 @@ result = minimize(
             x0=human_actions, 
             args=(initial_human_state, initial_robot_state, robot_actions),
             method='L-BFGS-B',
-            bounds=[(-np.pi, np.pi) for _ in range(len(human_actions))] # bounds: how human can turn (default: -pi to pi)
+            bounds=bounds
             )
 human_actions = result.x
 
