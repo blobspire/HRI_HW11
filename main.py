@@ -149,7 +149,7 @@ def plot_trajectory(initial_human_state, initial_robot_state, human_actions, rob
 initial_human_state = INITIAL_HUMAN_STATE.copy()
 initial_robot_state = INITIAL_ROBOT_STATE.copy()
 
-robot_actions = np.tile(INITIAL_ACTION, TIME_STEPS) # actions are slopes (turning angle)
+robot_actions = np.tile(INITIAL_ACTION, TIME_STEPS) # actions are repeated (theta, speed) pairs for each time step
 human_actions = np.tile(INITIAL_ACTION, TIME_STEPS)
 
 bounds = build_bounds(TIME_STEPS)
