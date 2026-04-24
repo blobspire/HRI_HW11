@@ -24,7 +24,6 @@ def notify_completion():
     except FileNotFoundError:
         print("\a", end="", flush=True)
 
-
 atexit.register(notify_completion) # Play sound when exit to notify developer
 
 # vehicle dynamics
@@ -70,9 +69,9 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
         cost += -human_state[0] # Maximize distance along first (x) axis (left to right)
 
         # If collide, add big cost
-        if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2: # If distance less than sum of radii, they collide
-            cost += 1000
-            break
+        # if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2: # If distance less than sum of radii, they collide
+        #     cost += 1000
+        #     break
     return cost
 
 # robot cost function
@@ -90,11 +89,10 @@ def robot_cost(robot_actions, initial_human_state, initial_robot_state, human_ac
         cost += human_state[0] # For robot to slow human, remove negation (cost = human's progress)
 
         # If collide, add big reward
-        if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2:
-            cost -= 1000
-            break
+        # if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2:
+        #     cost -= 1000
+        #     break
     return cost
-
 
 def solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions_guess):
     return minimize(
@@ -152,7 +150,7 @@ result = minimize(
             fun=nested_cost, 
             x0=robot_actions, 
             args=(initial_human_state, initial_robot_state, human_actions),
-            method='L-BFGS-B',
+            method='Powell', # Switch to Powell optimizer because it can handle non-smooth functions better
             bounds=bounds
             )
 robot_actions = result.x
