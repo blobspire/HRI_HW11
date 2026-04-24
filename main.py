@@ -69,9 +69,9 @@ def human_cost(human_actions, initial_human_state, initial_robot_state, robot_ac
         cost += -human_state[0] # Maximize distance along first (x) axis (left to right)
 
         # If collide, add big cost
-        # if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2: # If distance less than sum of radii, they collide
-        #     cost += 1000
-        #     break
+        if np.linalg.norm(human_state - robot_state) < AGENT_RADIUS * 2: # If distance less than sum of radii, they collide
+            cost += 1000
+            break
     return cost
 
 # robot cost function
@@ -99,16 +99,25 @@ def solve_human_best_response(initial_human_state, initial_robot_state, robot_ac
             fun=human_cost, 
             x0=human_actions_guess, 
             args=(initial_human_state, initial_robot_state, robot_actions),
-            method='L-BFGS-B',
+            method='Powell',
             bounds=bounds
             )
 
-# Determine the robot's cost for a given human plan
-def nested_cost(robot_actions, initial_human_state, initial_robot_state, human_actions):
-    # For each candidate robot plan, solve the human's best response
-    result = solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions)
-    human_actions = result.x
-    return robot_cost(robot_actions, initial_human_state, initial_robot_state, human_actions)
+def solve_robot_best_response(initial_human_state, initial_robot_state, human_actions, robot_actions_guess):
+    return minimize(
+            fun=robot_cost,
+            x0=robot_actions_guess,
+            args=(initial_human_state, initial_robot_state, human_actions),
+            method='Powell',
+            bounds=bounds
+            )
+
+# Determine the human's cost for a given robot best response
+def nested_cost(human_actions, initial_human_state, initial_robot_state, robot_actions):
+    # For each candidate human plan, solve the robot's best response
+    result = solve_robot_best_response(initial_human_state, initial_robot_state, human_actions, robot_actions)
+    robot_actions = result.x
+    return human_cost(human_actions, initial_human_state, initial_robot_state, robot_actions)
 
 # plot the trajectories
 def plot_trajectory(initial_human_state, initial_robot_state, human_actions, robot_actions):
@@ -145,25 +154,22 @@ human_actions = np.tile(INITIAL_ACTION, TIME_STEPS)
 
 bounds = build_bounds(TIME_STEPS)
 
-# Optimize the robot's actions given human's best response
+# Optimize the human's actions given the robot's best response
 result = minimize(
             fun=nested_cost, 
-            x0=robot_actions, 
-            args=(initial_human_state, initial_robot_state, human_actions),
+            x0=human_actions, 
+            args=(initial_human_state, initial_robot_state, robot_actions),
             method='Powell', # Switch to Powell optimizer because it can handle non-smooth functions better
             bounds=bounds
             )
-robot_actions = result.x
-
-# Solve for the human's best response to the final robot plan.
-result = solve_human_best_response(initial_human_state, initial_robot_state, robot_actions, human_actions)
 human_actions = result.x
+
+# Solve for the robot's best response to the final human plan.
+result = solve_robot_best_response(initial_human_state, initial_robot_state, human_actions, robot_actions)
+robot_actions = result.x
 
 # Remove the png to ensure we're viewing an updated result
 if os.path.exists(RESULT_PATH):
     os.remove(RESULT_PATH)
 # plot the results (saves as a png file)
 plot_trajectory(initial_human_state, initial_robot_state, unpack_actions(human_actions), unpack_actions(robot_actions))
-
-# TODO working on creating cool interactions. the robot is blocking the user bc it can remain in place (variable speed)
-# TODO then should streamline to remove redunant code. this will make the human first switch easier
